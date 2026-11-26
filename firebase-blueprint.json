@@ -1,0 +1,152 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Private profile record for an authenticated CareerTrack user.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "description": "Firebase Authentication user UID.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "fullName": {
+          "type": "string",
+          "description": "Display full name of the user.",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "description": "Verified registered email address.",
+          "minLength": 3,
+          "maxLength": 254
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when the profile was created."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when the profile was last updated."
+        }
+      },
+      "required": ["uid", "fullName", "email", "createdAt", "updatedAt"]
+    },
+    "JobApplication": {
+      "title": "JobApplication",
+      "description": "A single job or internship application owned by an authenticated user.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Owner Firebase Auth UID.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "companyName": {
+          "type": "string",
+          "description": "Name of the hiring company.",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "jobTitle": {
+          "type": "string",
+          "description": "Title of the job or internship role.",
+          "minLength": 1,
+          "maxLength": 160
+        },
+        "jobLocation": {
+          "type": "string",
+          "description": "City, state, hybrid, or remote location.",
+          "minLength": 1,
+          "maxLength": 160
+        },
+        "applicationDate": {
+          "type": "string",
+          "description": "Date submitted in YYYY-MM-DD format.",
+          "minLength": 10,
+          "maxLength": 10,
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+        },
+        "interviewDate": {
+          "type": "string",
+          "description": "Scheduled interview date in YYYY-MM-DD format or empty string.",
+          "maxLength": 10,
+          "pattern": "^(|\\d{4}-\\d{2}-\\d{2})$"
+        },
+        "interviewTime": {
+          "type": "string",
+          "description": "Scheduled interview time in HH:mm format or empty string.",
+          "maxLength": 5,
+          "pattern": "^(|\\d{2}:\\d{2})$"
+        },
+        "interviewType": {
+          "type": "string",
+          "description": "Interview round or format description.",
+          "maxLength": 120
+        },
+        "status": {
+          "type": "string",
+          "description": "Current pipeline stage.",
+          "enum": ["Applied", "Screening", "Interviewing", "Selected", "Rejected"]
+        },
+        "jobDescription": {
+          "type": "string",
+          "description": "Saved role description and requirements.",
+          "maxLength": 5000
+        },
+        "personalNotes": {
+          "type": "string",
+          "description": "User preparation and follow-up notes.",
+          "maxLength": 5000
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when the application was created."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when the application was last updated."
+        }
+      },
+      "required": [
+        "userId",
+        "companyName",
+        "jobTitle",
+        "jobLocation",
+        "applicationDate",
+        "interviewDate",
+        "interviewTime",
+        "interviewType",
+        "status",
+        "jobDescription",
+        "personalNotes",
+        "createdAt",
+        "updatedAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": {
+        "$ref": "#/entities/UserProfile"
+      },
+      "description": "Private user profile document keyed by Firebase Auth UID."
+    },
+    "/users/{userId}/applications/{applicationId}": {
+      "schema": {
+        "$ref": "#/entities/JobApplication"
+      },
+      "description": "User-isolated job and internship applications subcollection."
+    }
+  }
+}

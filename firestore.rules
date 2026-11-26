@@ -1,0 +1,177 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global default-deny safety net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerifiedUser() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isVerifiedOwner(userId) {
+      return isVerifiedUser() && request.auth.uid == userId;
+    }
+
+    function isValidUserProfile(data, userId) {
+      return data.keys().hasAll(['uid', 'fullName', 'email', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['uid', 'fullName', 'email', 'createdAt', 'updatedAt'])
+        && data.uid is string
+        && data.uid == userId
+        && data.uid == request.auth.uid
+        && isValidId(data.uid)
+        && data.fullName is string
+        && data.fullName.size() >= 1
+        && data.fullName.size() <= 120
+        && data.email is string
+        && data.email.size() >= 3
+        && data.email.size() <= 254
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidJobApplication(data, userId) {
+      return data.keys().hasAll([
+          'userId',
+          'companyName',
+          'jobTitle',
+          'jobLocation',
+          'applicationDate',
+          'interviewDate',
+          'interviewTime',
+          'interviewType',
+          'status',
+          'jobDescription',
+          'personalNotes',
+          'createdAt',
+          'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'userId',
+          'companyName',
+          'jobTitle',
+          'jobLocation',
+          'applicationDate',
+          'interviewDate',
+          'interviewTime',
+          'interviewType',
+          'status',
+          'jobDescription',
+          'personalNotes',
+          'createdAt',
+          'updatedAt'
+        ])
+        && data.userId is string
+        && data.userId == userId
+        && data.userId == request.auth.uid
+        && isValidId(data.userId)
+        && data.companyName is string
+        && data.companyName.size() >= 1
+        && data.companyName.size() <= 120
+        && data.jobTitle is string
+        && data.jobTitle.size() >= 1
+        && data.jobTitle.size() <= 160
+        && data.jobLocation is string
+        && data.jobLocation.size() >= 1
+        && data.jobLocation.size() <= 160
+        && data.applicationDate is string
+        && data.applicationDate.size() == 10
+        && data.applicationDate.matches('^\\d{4}-\\d{2}-\\d{2}$')
+        && data.interviewDate is string
+        && data.interviewDate.size() <= 10
+        && data.interviewDate.matches('^(|\\d{4}-\\d{2}-\\d{2})$')
+        && data.interviewTime is string
+        && data.interviewTime.size() <= 5
+        && data.interviewTime.matches('^(|\\d{2}:\\d{2})$')
+        && data.interviewType is string
+        && data.interviewType.size() <= 120
+        && data.status is string
+        && data.status in ['Applied', 'Screening', 'Interviewing', 'Selected', 'Rejected']
+        && data.jobDescription is string
+        && data.jobDescription.size() <= 5000
+        && data.personalNotes is string
+        && data.personalNotes.size() <= 5000
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    match /users/{userId} {
+      allow get: if isVerifiedOwner(userId) && isValidId(userId);
+      allow list: if false;
+      allow create: if isVerifiedOwner(userId)
+        && isValidId(userId)
+        && isValidUserProfile(incoming(), userId)
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isVerifiedOwner(userId)
+        && isValidId(userId)
+        && isValidUserProfile(incoming(), userId)
+        && incoming().uid == existing().uid
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly(['fullName', 'email', 'updatedAt']);
+      allow delete: if false;
+
+      match /applications/{applicationId} {
+        allow get: if isVerifiedOwner(userId) && isValidId(userId) && isValidId(applicationId);
+        allow list: if isVerifiedOwner(userId) && resource.data.userId == request.auth.uid;
+        allow create: if isVerifiedOwner(userId)
+          && isValidId(userId)
+          && isValidId(applicationId)
+          && isValidJobApplication(incoming(), userId)
+          && incoming().createdAt == request.time
+          && incoming().updatedAt == request.time
+          && exists(/databases/$(database)/documents/users/$(userId));
+        allow update: if isVerifiedOwner(userId)
+          && isValidId(userId)
+          && isValidId(applicationId)
+          && isValidJobApplication(incoming(), userId)
+          && incoming().userId == existing().userId
+          && incoming().createdAt == existing().createdAt
+          && incoming().updatedAt == request.time
+          && (
+            incoming().diff(existing()).affectedKeys().hasOnly([
+              'interviewDate',
+              'interviewTime',
+              'interviewType',
+              'status',
+              'personalNotes',
+              'updatedAt'
+            ])
+            || incoming().diff(existing()).affectedKeys().hasOnly([
+              'companyName',
+              'jobTitle',
+              'jobLocation',
+              'applicationDate',
+              'interviewDate',
+              'interviewTime',
+              'interviewType',
+              'status',
+              'jobDescription',
+              'personalNotes',
+              'updatedAt'
+            ])
+          );
+        allow delete: if isVerifiedOwner(userId) && isValidId(userId) && isValidId(applicationId);
+      }
+    }
+  }
+}
